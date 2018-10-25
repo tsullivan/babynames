@@ -16,9 +16,9 @@ function getClient(): Client {
   });
 }
 
-async function checkClient(client: Client): Promise<void> {
-  await client.ping({ requestTimeout: 30000 });
-}
+// async function checkClient(client: Client): Promise<void> {
+//  await client.ping({ requestTimeout: 30000 });
+// }
 
 interface IBabyNameDoc {
   gender: string;
@@ -31,7 +31,7 @@ interface IBabyNameDoc {
 async function runBulkPartition(
   docs: IBabyNameDoc[],
   client: Client
-): Promise<void> {
+): Promise<{ took: number; errors: boolean; items: number }> {
   const body = docs.map(babyNameDoc => {
     const id = `${babyNameDoc.name}-${babyNameDoc.gender}-${babyNameDoc.year}`;
     return [
@@ -41,12 +41,13 @@ async function runBulkPartition(
   });
 
   return client.bulk({ body: flatten(body) }).then(result => {
-    console.log({ took: result.took, errors: result.errors, items: result.items.length });
+    return { took: result.took, errors: result.errors, items: result.items.length };
   });
 }
 
-async function runDocs(files: string[], client: Client): Promise<number> {
+async function runDocs(files: string[], client: Client): Promise<{ items: number; uploads: number }> {
   let idx = 0;
+  let uploads = 0;
   const nameDocs: IBabyNameDoc[] = [];
 
   for (const file of files) {
@@ -69,7 +70,11 @@ async function runDocs(files: string[], client: Client): Promise<number> {
         // process
         if (nameDocs.length === PARTITION_SIZE) {
           try {
-            await runBulkPartition(nameDocs, client);
+            const { took, errors, items } = await runBulkPartition(nameDocs, client);
+            console.log({ took, errors, items });
+            if (!errors) {
+              uploads++;
+            }
           } catch (err) {
             console.error('Bulk didnt work! ' + err.message);
           }
@@ -82,14 +87,14 @@ async function runDocs(files: string[], client: Client): Promise<number> {
   // remainder
   await runBulkPartition(nameDocs, client);
 
-  return idx;
+  return { items: idx, uploads };
 }
 
 async function setup(): Promise<void> {
   const client = getClient();
   try {
-    await checkClient(client);
-    console.info('client is ok!');
+    // await checkClient(client);
+    // console.info('client is ok!');
 
     await client.indices.putTemplate(config.esTemplate);
     console.info('template is ok!');
@@ -97,7 +102,8 @@ async function setup(): Promise<void> {
     const files = await readdirAsync('./data', { encoding: 'utf8' });
     console.info(`files found: ${files.length}`);
 
-    await runDocs(files, client);
+    const { items, uploads } = await runDocs(files, client);
+    console.log({ items, uploads });
   } catch (err) {
     console.error('something is NOT ok!');
     console.error(err);
