@@ -1,0 +1,32 @@
+{
+  "name": "babynames",
+  "version": "0.0.1",
+  "description": "Fun with the Social Security Administration's baby name data",
+  "main": "index.js",
+  "scripts": {
+    "babies": "ts-node index.js"
+  },
+  "keywords": [
+    "babies",
+    "names"
+  ],
+  "prettier": {
+    "printWidth": 88,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "parser": "typescript"
+  },
+  "dependencies": {
+    "elasticsearch": "^15.1.1",
+    "lodash": "^4.17.11",
+    "ts-node": "^7.0.1",
+    "typescript": "^2.9.2"
+  },
+  "author": "Tim Sullivan",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^1.14.3",
+    "tslint": "^5.11.0",
+    "tslint-config-prettier": "^1.15.0"
+  }
+}
