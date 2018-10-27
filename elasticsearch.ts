@@ -14,7 +14,7 @@ const TEMPLATE = {
           gender: { type: 'keyword' },
           name: { type: 'keyword' },
           percent: { type: 'float' },
-          ranking: { type: 'integer' },
+          value: { type: 'integer' },
           year: { type: 'integer' },
         }
       }
@@ -46,7 +46,7 @@ interface IBabyNameDoc {
   gender: string;
   name: string;
   percent: number;
-  ranking: number;
+  value: number;
   year: number;
 }
 
@@ -80,19 +80,20 @@ async function runDocs(files: string[], client: Client): Promise<number> {
   for (const file of files) {
     const contents = await readFileAsync('./data/' + file, { encoding: 'utf8' });
     const babyName = JSON.parse(contents);
-    const { values: years, percents } = babyName;
-    for (const year in years) {
-      if (years.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
+    const { values, percents } = babyName;
+    for (const year in values) {
+      if (values.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
         idx++;
 
         // map
-        nameDocs.push({
+        const doc = {
           gender: babyName.gender as string,
           name: babyName.name as string,
           percent: parseFloat(percents[year]) as number,
-          ranking: parseInt(babyName.year, 10) as number,
+          value: parseInt(values[year], 10) as number,
           year: parseInt(year, 10),
-        });
+        };
+        nameDocs.push(doc);
 
         // process
         if (nameDocs.length === PARTITION_SIZE) {
