@@ -4,10 +4,32 @@ import { flatten } from 'lodash';
 import { promisify } from 'util';
 import * as config from './config';
 
+const PARTITION_SIZE = 500;
+const TEMPLATE = {
+  body: {
+    index_patterns: [config.esIndex],
+    mappings: {
+      [config.esType]: {
+        properties: {
+          gender: { type: 'keyword' },
+          name: { type: 'keyword' },
+          percent: { type: 'float' },
+          ranking: { type: 'integer' },
+          year: { type: 'integer' },
+        }
+      }
+    },
+    settings: {
+      number_of_replicas: 0,
+      number_of_shards: 2,
+    }
+  },
+  name: config.esIndex,
+}
+
+
 const readdirAsync = promisify(readdir);
 const readFileAsync = promisify(readFile);
-
-const PARTITION_SIZE = 500;
 
 function getClient(): Client {
   return new Client({
@@ -28,6 +50,12 @@ interface IBabyNameDoc {
   year: number;
 }
 
+interface IBulkResult {
+  took: number;
+  errors: boolean;
+  items: any[];
+}
+
 async function runBulkPartition(
   docs: IBabyNameDoc[],
   client: Client
@@ -40,7 +68,7 @@ async function runBulkPartition(
     ];
   });
 
-  return client.bulk({ body: flatten(body) }).then(result => {
+  return client.bulk({ body: flatten(body) }).then((result: IBulkResult) => {
     console.log({ took: result.took, errors: result.errors, items: result.items.length });
   });
 }
@@ -91,7 +119,7 @@ async function setup(): Promise<void> {
     await checkClient(client);
     console.info('client is ok!');
 
-    await client.indices.putTemplate(config.esTemplate);
+    await client.indices.putTemplate(TEMPLATE);
     console.info('template is ok!');
 
     const files = await readdirAsync('./data', { encoding: 'utf8' });
