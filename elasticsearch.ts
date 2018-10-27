@@ -61,8 +61,8 @@ async function runDocs(files: string[], client: Client): Promise<number> {
         nameDocs.push({
           gender: babyName.gender as string,
           name: babyName.name as string,
-          percent: percents[year] as number,
-          ranking: years[year] as number,
+          percent: parseFloat(percents[year]) as number,
+          ranking: parseInt(babyName.year, 10) as number,
           year: parseInt(year, 10),
         });
 
