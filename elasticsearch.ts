@@ -4,10 +4,32 @@ import { flatten } from 'lodash';
 import { promisify } from 'util';
 import * as config from './config';
 
+const PARTITION_SIZE = 500;
+const TEMPLATE = {
+  body: {
+    index_patterns: [config.esIndex],
+    mappings: {
+      [config.esType]: {
+        properties: {
+          gender: { type: 'keyword' },
+          name: { type: 'keyword' },
+          percent: { type: 'float' },
+          value: { type: 'integer' },
+          year: { type: 'integer' },
+        }
+      }
+    },
+    settings: {
+      number_of_replicas: 0,
+      number_of_shards: 2,
+    }
+  },
+  name: config.esIndex,
+}
+
+
 const readdirAsync = promisify(readdir);
 const readFileAsync = promisify(readFile);
-
-const PARTITION_SIZE = 500;
 
 function getClient(): Client {
   return new Client({
@@ -24,8 +46,14 @@ interface IBabyNameDoc {
   gender: string;
   name: string;
   percent: number;
-  ranking: number;
+  value: number;
   year: number;
+}
+
+interface IBulkResult {
+  took: number;
+  errors: boolean;
+  items: any[];
 }
 
 async function runBulkPartition(
@@ -40,7 +68,7 @@ async function runBulkPartition(
     ];
   });
 
-  return client.bulk({ body: flatten(body) }).then(result => {
+  return client.bulk({ body: flatten(body) }).then((result: IBulkResult) => {
     return { took: result.took, errors: result.errors, items: result.items.length };
   });
 }
@@ -53,19 +81,20 @@ async function runDocs(files: string[], client: Client): Promise<{ items: number
   for (const file of files) {
     const contents = await readFileAsync('./data/' + file, { encoding: 'utf8' });
     const babyName = JSON.parse(contents);
-    const { values: years, percents } = babyName;
-    for (const year in years) {
-      if (years.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
+    const { values, percents } = babyName;
+    for (const year in values) {
+      if (values.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
         idx++;
 
         // map
-        nameDocs.push({
+        const doc = {
           gender: babyName.gender as string,
           name: babyName.name as string,
-          percent: percents[year] as number,
-          ranking: years[year] as number,
+          percent: parseFloat(percents[year]) as number,
+          value: parseInt(values[year], 10) as number,
           year: parseInt(year, 10),
-        });
+        };
+        nameDocs.push(doc);
 
         // process
         if (nameDocs.length === PARTITION_SIZE) {
@@ -96,7 +125,7 @@ async function setup(): Promise<void> {
     // await checkClient(client);
     // console.info('client is ok!');
 
-    await client.indices.putTemplate(config.esTemplate);
+    await client.indices.putTemplate(TEMPLATE);
     console.info('template is ok!');
 
     const files = await readdirAsync('./data', { encoding: 'utf8' });
