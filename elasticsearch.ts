@@ -53,7 +53,7 @@ async function runBulkPartition(
   client: Client
 ): Promise<{ took: number; errors: boolean; items: number }> {
   const body = docs.map(babyNameDoc => {
-    const id = `${babyNameDoc.name}-${babyNameDoc.gender}-${babyNameDoc.year}`;
+    const id = `${babyNameDoc.year}-${babyNameDoc.name}-${babyNameDoc.gender}`;
     return [
       { index: { _index: config.esIndex, _type: config.esType, _id: id } },
       babyNameDoc,
