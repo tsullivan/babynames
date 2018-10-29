@@ -5,28 +5,20 @@ import { promisify } from 'util';
 import * as config from './config';
 
 const PARTITION_SIZE = 500;
-const TEMPLATE = {
-  body: {
-    index_patterns: [config.esIndex],
-    mappings: {
-      [config.esType]: {
-        properties: {
-          gender: { type: 'keyword' },
-          name: { type: 'keyword' },
-          percent: { type: 'float' },
-          value: { type: 'integer' },
-          year: { type: 'integer' },
-        }
-      }
+const INDEX_SETTINGS = {
+  mappings: {
+    [config.esType]: {
+      properties: {
+        gender: { type: 'keyword' },
+        name: { type: 'keyword' },
+        percent: { type: 'float' },
+        value: { type: 'integer' },
+        year: { type: 'integer' },
+      },
     },
-    settings: {
-      number_of_replicas: 0,
-      number_of_shards: 2,
-    }
   },
-  name: config.esIndex,
-}
-
+  settings: { number_of_replicas: 0, number_of_shards: 2 },
+};
 
 const readdirAsync = promisify(readdir);
 const readFileAsync = promisify(readFile);
@@ -73,7 +65,10 @@ async function runBulkPartition(
   });
 }
 
-async function runDocs(files: string[], client: Client): Promise<{ items: number; uploads: number }> {
+async function runDocs(
+  files: string[],
+  client: Client
+): Promise<{ items: number; uploads: number }> {
   let idx = 0;
   let uploads = 0;
   const nameDocs: IBabyNameDoc[] = [];
@@ -125,7 +120,10 @@ async function setup(): Promise<void> {
     // await checkClient(client);
     // console.info('client is ok!');
 
-    await client.indices.putTemplate(TEMPLATE);
+    await client.indices.create({
+      body: INDEX_SETTINGS,
+      index: config.esIndex,
+    });
     console.info('template is ok!');
 
     const files = await readdirAsync('./data', { encoding: 'utf8' });
