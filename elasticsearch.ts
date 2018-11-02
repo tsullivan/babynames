@@ -1,9 +1,10 @@
 import { Client } from 'elasticsearch';
-import { readdir, readFile } from 'fs';
+import * as fs from 'fs';
 import { flatten } from 'lodash';
 import { promisify } from 'util';
 import * as config from './config';
 
+const LOG_FILE = 'babies.log';
 const PARTITION_SIZE = 500;
 const INDEX_SETTINGS = {
   mappings: {
@@ -20,8 +21,11 @@ const INDEX_SETTINGS = {
   settings: { number_of_replicas: 0, number_of_shards: 2 },
 };
 
-const readdirAsync = promisify(readdir);
-const readFileAsync = promisify(readFile);
+const readdirAsync = promisify(fs.readdir);
+const readFileAsync = promisify(fs.readFile);
+const fileOpenAsync = promisify(fs.open);
+const fileWriteSync = promisify(fs.write);
+const fileCloseAsync = promisify(fs.close);
 
 function getClient(): Client {
   return new Client({
@@ -29,10 +33,6 @@ function getClient(): Client {
     log: 'info',
   });
 }
-
-// async function checkClient(client: Client): Promise<void> {
-//  await client.ping({ requestTimeout: 30000 });
-// }
 
 interface IBabyNameDoc {
   gender: string;
@@ -66,20 +66,35 @@ async function runBulkPartition(
 }
 
 async function runDocs(
-  files: string[],
+  fileSet: string[],
   client: Client
-): Promise<{ items: number; uploads: number }> {
-  let idx = 0;
+): Promise<{ files: number; uploads: number, docs: number }> {
+  let files = 0;
   let uploads = 0;
+  let docs = 0;
+
+  const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
   const nameDocs: IBabyNameDoc[] = [];
 
-  for (const file of files) {
+  const upload = async () => {
+    try {
+      const { took, errors, items } = await runBulkPartition(nameDocs, client);
+      await fileWriteSync(fsHandle, JSON.stringify({ took, errors, items }) + '\n');
+      if (!errors) {
+        uploads++;
+      }
+    } catch (err) {
+      console.error('Bulk didnt work! ' + err.message);
+    }
+  };
+
+  for (const file of fileSet) {
+    files++;
     const contents = await readFileAsync('./data/' + file, { encoding: 'utf8' });
     const babyName = JSON.parse(contents);
     const { values, percents } = babyName;
     for (const year in values) {
       if (values.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
-        idx++;
 
         // map
         const doc = {
@@ -90,47 +105,45 @@ async function runDocs(
           year: parseInt(year, 10),
         };
         nameDocs.push(doc);
+        docs++;
 
         // process
         if (nameDocs.length === PARTITION_SIZE) {
-          try {
-            const { took, errors, items } = await runBulkPartition(nameDocs, client);
-            console.log({ took, errors, items });
-            if (!errors) {
-              uploads++;
-            }
-          } catch (err) {
-            console.error('Bulk didnt work! ' + err.message);
-          }
+          await upload();
           nameDocs.splice(0, PARTITION_SIZE);
         }
+
+        // log
+        await fileWriteSync(fsHandle, JSON.stringify(doc) + '\n');
       }
     }
   }
 
-  // remainder
-  await runBulkPartition(nameDocs, client);
+  // capture remainder name docs
+  await upload();
 
-  return { items: idx, uploads };
+  // clean up
+  await fileCloseAsync(fsHandle);
+
+  return { files, uploads, docs };
 }
 
 async function setup(): Promise<void> {
   const client = getClient();
   try {
-    // await checkClient(client);
-    // console.info('client is ok!');
-
     await client.indices.create({
       body: INDEX_SETTINGS,
       index: config.esIndex,
     });
-    console.info('template is ok!');
-
-    const files = await readdirAsync('./data', { encoding: 'utf8' });
-    console.info(`files found: ${files.length}`);
-
-    const { items, uploads } = await runDocs(files, client);
-    console.log({ items, uploads });
+    console.info('Index is ok!');
+    const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
+    console.info('Running...');
+    const { files, uploads, docs } = await runDocs(fileSet, client);
+    console.info('Done!');
+    console.info(`Files found: ${fileSet.length}`);
+    console.info(`Files processed: ${files}`);
+    console.info(`Uploads performed: ${uploads}`);
+    console.info(`Total documents: ${docs}`);
   } catch (err) {
     console.error('something is NOT ok!');
     console.error(err);
