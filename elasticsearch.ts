@@ -68,7 +68,7 @@ async function runBulkPartition(
 async function runDocs(
   fileSet: string[],
   client: Client
-): Promise<{ files: number; uploads: number, docs: number }> {
+): Promise<{ files: number; uploads: number; docs: number }> {
   let files = 0;
   let uploads = 0;
   let docs = 0;
@@ -95,7 +95,6 @@ async function runDocs(
     const { values, percents } = babyName;
     for (const year in values) {
       if (values.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
-
         // map
         const doc = {
           gender: babyName.gender as string,
