@@ -18,7 +18,11 @@ const INDEX_SETTINGS = {
       },
     },
   },
-  settings: { number_of_replicas: 0, number_of_shards: 2 },
+  settings: {
+    'index.mapping.coerce': false,
+    number_of_replicas: 0,
+    number_of_shards: 2,
+  },
 };
 
 const readdirAsync = promisify(fs.readdir);
@@ -37,7 +41,7 @@ function getClient(): Client {
 interface IBabyNameDoc {
   gender: string;
   name: string;
-  percent: number;
+  percent: string;
   value: number;
   year: number;
 }
@@ -99,7 +103,7 @@ async function runDocs(
         const doc = {
           gender: babyName.gender as string,
           name: babyName.name as string,
-          percent: parseFloat(percents[year]) as number,
+          percent: percents[year] as string,
           value: parseInt(values[year], 10) as number,
           year: parseInt(year, 10),
         };
