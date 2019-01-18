@@ -63,7 +63,7 @@ async function runBulkPartition(
   const body = docs.map(babyNameDoc => {
     const id = `${babyNameDoc.year}-${babyNameDoc.name}-${babyNameDoc.gender}`;
     return [
-      { index: { _index: config.esIndex, _type: config.esType, _id: id } },
+      { index: { _index: config.esIndex, _id: id } },
       babyNameDoc,
     ];
   });

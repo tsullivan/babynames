@@ -8,7 +8,6 @@ Sample `config.ts`:
 ```javascript
 export const esHost = 'http://elastic:changeme@localhost:9200';
 export const esIndex = 'babynames';
-export const esType = '_doc';
 ```
 
 ## Data 
