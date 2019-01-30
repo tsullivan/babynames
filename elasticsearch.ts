@@ -1,3 +1,4 @@
+import * as moment from 'moment';
 import { Client } from 'elasticsearch';
 import * as fs from 'fs';
 import { flatten } from 'lodash';
@@ -16,6 +17,7 @@ const INDEX_SETTINGS = {
         percent: { type: 'float' },
         value: { type: 'integer' },
         year: { type: 'integer' },
+        date: { type: 'date' },
       },
     },
   },
@@ -45,6 +47,7 @@ interface IBabyNameDoc {
   percent: string;
   value: number;
   year: number;
+  date: Date;
 }
 
 interface IBulkResult {
@@ -101,12 +104,15 @@ async function runDocs(
     for (const year in values) {
       if (values.hasOwnProperty(year) && percents.hasOwnProperty(year)) {
         // map
+        const yearInt = parseInt(year, 10);
+        const yearConversionOffset = yearInt - 1970;
         const doc = {
           gender: babyName.gender as string,
           name: babyName.name as string,
           percent: percents[year] as string,
           value: parseInt(values[year], 10) as number,
-          year: parseInt(year, 10),
+          date: moment.utc(0).add(yearConversionOffset, 'years').toDate(),
+          year: yearInt,
         };
         nameDocs.push(doc);
         docs++;
