@@ -5,20 +5,17 @@ import { flatten } from 'lodash';
 import { promisify } from 'util';
 import * as config from './config';
 
-const DOC_TYPE = '_doc';
 const LOG_FILE = 'babies.log';
 const PARTITION_SIZE = 500;
 const INDEX_SETTINGS = {
   mappings: {
-    [DOC_TYPE]: {
-      properties: {
-        gender: { type: 'keyword' },
-        name: { type: 'keyword' },
-        percent: { type: 'float' },
-        value: { type: 'integer' },
-        year: { type: 'integer' },
-        date: { type: 'date' },
-      },
+    properties: {
+      gender: { type: 'keyword' },
+      name: { type: 'keyword' },
+      percent: { type: 'float' },
+      value: { type: 'integer' },
+      year: { type: 'integer' },
+      date: { type: 'date' },
     },
   },
   settings: {
