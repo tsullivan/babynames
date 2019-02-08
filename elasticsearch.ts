@@ -93,6 +93,7 @@ async function runDocs(
     }
   };
 
+  let flagUploadMessageShown = false;
   for (const file of fileSet) {
     files++;
     const contents = await readFileAsync('./data/' + file, { encoding: 'utf8' });
@@ -116,7 +117,14 @@ async function runDocs(
 
         // process
         if (nameDocs.length === PARTITION_SIZE) {
+          if (!flagUploadMessageShown) {
+            console.info(`Uploading ${PARTITION_SIZE} docs at a time...`);
+          }
           await upload();
+          if (!flagUploadMessageShown) {
+            console.info(`Uploaded ${PARTITION_SIZE} docs`);
+            flagUploadMessageShown = true;
+          }
           nameDocs.splice(0, PARTITION_SIZE);
         }
 
@@ -142,18 +150,25 @@ async function setup(): Promise<void> {
       body: INDEX_SETTINGS,
       index: config.esIndex,
     });
-    console.info('Index is ok!');
+  }
+  catch (err) {
+    if(err.toString().includes('[resource_already_exists_exception]')) {
+      console.warn('Index already exists! Hope it is ok.');
+    } else {
+      throw err;
+    }
+  }
+  try {
     const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
-    console.info('Running...');
     const { files, uploads, docs } = await runDocs(fileSet, client);
-    console.info('Done!');
+    console.info('- Done! -');
     console.info(`Files found: ${fileSet.length}`);
     console.info(`Files processed: ${files}`);
     console.info(`Uploads performed: ${uploads}`);
     console.info(`Total documents: ${docs}`);
   } catch (err) {
     console.error('something is NOT ok!');
-    console.error(err);
+    console.error();
   }
 }
 
