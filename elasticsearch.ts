@@ -1,4 +1,5 @@
 import * as moment from 'moment';
+import * as _cliProgress from 'cli-progress';
 import { Client } from 'elasticsearch';
 import * as fs from 'fs';
 import { flatten } from 'lodash';
@@ -24,6 +25,7 @@ const INDEX_SETTINGS = {
     number_of_shards: 2,
   },
 };
+const UPLOADS_EXPECTED = 3849;
 
 const readdirAsync = promisify(fs.readdir);
 const readFileAsync = promisify(fs.readFile);
@@ -78,8 +80,12 @@ async function runDocs(
   let uploads = 0;
   let docs = 0;
 
+  const bar1 = new _cliProgress.Bar({}, _cliProgress.Presets.shades_classic);
+  bar1.start(UPLOADS_EXPECTED, 0);
+
   const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
   const nameDocs: IBabyNameDoc[] = [];
+
 
   const upload = async () => {
     try {
@@ -87,13 +93,13 @@ async function runDocs(
       await fileWriteSync(fsHandle, JSON.stringify({ took, errors, items }) + '\n');
       if (!errors) {
         uploads++;
+        bar1.update(uploads);
       }
     } catch (err) {
       console.error('Bulk didnt work! ' + err.message);
     }
   };
 
-  let flagUploadMessageShown = false;
   for (const file of fileSet) {
     files++;
     const contents = await readFileAsync('./data/' + file, { encoding: 'utf8' });
@@ -115,16 +121,9 @@ async function runDocs(
         nameDocs.push(doc);
         docs++;
 
-        // process
+        // upload
         if (nameDocs.length === PARTITION_SIZE) {
-          if (!flagUploadMessageShown) {
-            console.info(`Uploading ${PARTITION_SIZE} docs at a time...`);
-          }
           await upload();
-          if (!flagUploadMessageShown) {
-            console.info(`Uploaded ${PARTITION_SIZE} docs`);
-            flagUploadMessageShown = true;
-          }
           nameDocs.splice(0, PARTITION_SIZE);
         }
 
@@ -138,6 +137,7 @@ async function runDocs(
   await upload();
 
   // clean up
+  bar1.stop();
   await fileCloseAsync(fsHandle);
 
   return { files, uploads, docs };
