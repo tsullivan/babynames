@@ -1,8 +1,8 @@
-import * as moment from 'moment';
 import * as _cliProgress from 'cli-progress';
 import { Client } from 'elasticsearch';
 import * as fs from 'fs';
 import { flatten } from 'lodash';
+import * as moment from 'moment';
 import { promisify } from 'util';
 import * as config from './config';
 
@@ -61,10 +61,7 @@ async function runBulkPartition(
 ): Promise<{ took: number; errors: boolean; items: number }> {
   const body = docs.map(babyNameDoc => {
     const id = `${babyNameDoc.year}-${babyNameDoc.name}-${babyNameDoc.gender}`;
-    return [
-      { index: { _index: config.esIndex, _id: id } },
-      babyNameDoc,
-    ];
+    return [{ index: { _index: config.esIndex, _id: id } }, babyNameDoc];
   });
 
   return client.bulk({ body: flatten(body) }).then((result: IBulkResult) => {
@@ -85,7 +82,6 @@ async function runDocs(
 
   const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
   const nameDocs: IBabyNameDoc[] = [];
-
 
   const upload = async () => {
     try {
@@ -112,10 +108,13 @@ async function runDocs(
         const yearConversionOffset = yearInt - 1970;
         const doc = {
           gender: babyName.gender as string,
-          name: babyName.name as string,
+          name: ('F' + babyName.name.slice(1)) as string,
           percent: percents[year] as string,
           value: parseInt(values[year], 10) as number,
-          date: moment.utc(0).add(yearConversionOffset, 'years').toDate(),
+          date: moment
+            .utc(0)
+            .add(yearConversionOffset, 'years')
+            .toDate(),
           year: yearInt,
         };
         nameDocs.push(doc);
@@ -150,9 +149,8 @@ async function setup(): Promise<void> {
       body: INDEX_SETTINGS,
       index: config.esIndex,
     });
-  }
-  catch (err) {
-    if(err.toString().includes('[resource_already_exists_exception]')) {
+  } catch (err) {
+    if (err.toString().includes('[resource_already_exists_exception]')) {
       console.warn('Index already exists! Hope it is ok.');
     } else {
       throw err;
