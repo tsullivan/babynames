@@ -33,13 +33,6 @@ const fileOpenAsync = promisify(fs.open);
 const fileWriteSync = promisify(fs.write);
 const fileCloseAsync = promisify(fs.close);
 
-function getClient(): Client {
-  return new Client({
-    host: config.esHost,
-    log: 'info',
-  });
-}
-
 interface IBabyNameDoc {
   gender: string;
   name: string;
@@ -142,32 +135,33 @@ async function runDocs(
   return { files, uploads, docs };
 }
 
-async function setup(): Promise<void> {
-  const client = getClient();
-  try {
-    await client.indices.create({
-      body: INDEX_SETTINGS,
-      index: config.esIndex,
-    });
-  } catch (err) {
-    if (err.toString().includes('[resource_already_exists_exception]')) {
-      console.warn('Index already exists! Hope it is ok.');
-    } else {
-      throw err;
-    }
-  }
-  try {
-    const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
-    const { files, uploads, docs } = await runDocs(fileSet, client);
-    console.info('- Done! -');
-    console.info(`Files found: ${fileSet.length}`);
-    console.info(`Files processed: ${files}`);
-    console.info(`Uploads performed: ${uploads}`);
-    console.info(`Total documents: ${docs}`);
-  } catch (err) {
-    console.error('something is NOT ok!');
-    console.error();
-  }
+async function readDir(client): Promise<void> {
+  const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
+  const { files, uploads, docs } = await runDocs(fileSet, client);
+  console.info('- Done! -');
+  console.info(`Files found: ${fileSet.length}`);
+  console.info(`Files processed: ${files}`);
+  console.info(`Uploads performed: ${uploads}`);
+  console.info(`Total documents: ${docs}`);
 }
 
-setup();
+async function setup(): Promise<Client> {
+  const client = new Client({
+    host: config.esHost,
+    log: 'info',
+  });
+  client.indices
+    .create({
+      body: INDEX_SETTINGS,
+      index: config.esIndex,
+    })
+    .then(() => client);
+}
+
+setup()
+  .then(readDir)
+  .catch(err => {
+    console.error(`Setup encountered an error: ${err}`);
+    console.debug(err.stack);
+    process.exit();
+  });
