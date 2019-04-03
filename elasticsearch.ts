@@ -11,12 +11,12 @@ const PARTITION_SIZE = 500;
 const INDEX_SETTINGS = {
   mappings: {
     properties: {
+      date: { type: 'date' },
       gender: { type: 'keyword' },
       name: { type: 'keyword' },
       percent: { type: 'float' },
       value: { type: 'integer' },
       year: { type: 'integer' },
-      date: { type: 'date' },
     },
   },
   settings: {
@@ -100,14 +100,14 @@ async function runDocs(
         const yearInt = parseInt(year, 10);
         const yearConversionOffset = yearInt - 1970;
         const doc = {
-          gender: babyName.gender as string,
-          name: ('F' + babyName.name.slice(1)) as string,
-          percent: percents[year] as string,
-          value: parseInt(values[year], 10) as number,
           date: moment
             .utc(0)
             .add(yearConversionOffset, 'years')
             .toDate(),
+          gender: babyName.gender as string,
+          name: ('F' + babyName.name.slice(1)) as string,
+          percent: percents[year] as string,
+          value: parseInt(values[year], 10) as number,
           year: yearInt,
         };
         nameDocs.push(doc);
@@ -135,7 +135,7 @@ async function runDocs(
   return { files, uploads, docs };
 }
 
-async function readDir(client): Promise<void> {
+async function readDir(client: Client): Promise<void> {
   const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
   const { files, uploads, docs } = await runDocs(fileSet, client);
   console.info('- Done! -');
@@ -150,7 +150,7 @@ async function setup(): Promise<Client> {
     host: config.esHost,
     log: 'info',
   });
-  client.indices
+  return client.indices
     .create({
       body: INDEX_SETTINGS,
       index: config.esIndex,

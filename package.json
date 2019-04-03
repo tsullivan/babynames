@@ -17,6 +17,9 @@
     "parser": "typescript"
   },
   "dependencies": {
+    "@types/cli-progress": "^1.8.1",
+    "@types/elasticsearch": "^5.0.32",
+    "@types/lodash": "^4.14.123",
     "@types/node": "11",
     "cli-progress": "^2.1.1",
     "elasticsearch": "15.4",

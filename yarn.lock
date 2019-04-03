@@ -2,6 +2,28 @@
 # yarn lockfile v1
 
 
+"@types/cli-progress@^1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@types/cli-progress/-/cli-progress-1.8.1.tgz#f52f2c15ca85acab99617fd91616936faf070bd3"
+  integrity sha512-W31ZRQPQ1CM42pb5iqs3TzQlMv/RDRsPZ6pTCsl71oLFqFI/TYors3Pukj6tMinlUmXmv+Az5RD/94fZPcxMrw==
+  dependencies:
+    "@types/node" "*"
+
+"@types/elasticsearch@^5.0.32":
+  version "5.0.32"
+  resolved "https://registry.yarnpkg.com/@types/elasticsearch/-/elasticsearch-5.0.32.tgz#8fef870ede8ce2db140f9e25fdf0aa8cc908d3d9"
+  integrity sha512-BlX/ji/JAaJ5ogIbHOHNN/8JQbBsVchDOzLh5T6ti3vYvceLY5IJRgppXRBG0NWf9YVCtzmS8WrXxV7ADF8cWg==
+
+"@types/lodash@^4.14.123":
+  version "4.14.123"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.123.tgz#39be5d211478c8dd3bdae98ee75bb7efe4abfe4d"
+  integrity sha512-pQvPkc4Nltyx7G1Ww45OjVqUsJP4UsZm+GWJpigXgkikZqJgRm4c48g027o6tdgubWHwFRF15iFd+Y4Pmqv6+Q==
+
+"@types/node@*":
+  version "11.13.0"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-11.13.0.tgz#b0df8d6ef9b5001b2be3a94d909ce3c29a80f9e1"
+  integrity sha512-rx29MMkRdVmzunmiA4lzBYJNnXsW/PhG4kMBy2ATsYaDjGGR75dCFEVVROKpNwlVdcUX3xxlghKQOeDPBJobng==
+
 "@types/node@11":
   version "11.12.0"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-11.12.0.tgz#ec5594728811dc2797e42396cfcdf786f2052c12"
