@@ -1,39 +1,22 @@
 import * as _cliProgress from 'cli-progress';
-import { Client } from 'elasticsearch';
+import * as config from '../config';
 import * as fs from 'fs';
-import { flatten } from 'lodash';
 import * as moment from 'moment';
+import { Client } from 'elasticsearch';
+import { flatten } from 'lodash';
 import { promisify } from 'util';
-import * as config from './config';
 
 const LOG_FILE = 'babies.log';
 const PARTITION_SIZE = 500;
-const INDEX_SETTINGS = {
-  mappings: {
-    properties: {
-      date: { type: 'date' },
-      gender: { type: 'keyword' },
-      name: { type: 'keyword' },
-      percent: { type: 'float' },
-      value: { type: 'integer' },
-      year: { type: 'integer' },
-    },
-  },
-  settings: {
-    'index.mapping.coerce': false,
-    number_of_replicas: 0,
-    number_of_shards: 2,
-  },
-};
 const UPLOADS_EXPECTED = 3849;
 
-const readdirAsync = promisify(fs.readdir);
-const readFileAsync = promisify(fs.readFile);
-const fileOpenAsync = promisify(fs.open);
-const fileWriteSync = promisify(fs.write);
-const fileCloseAsync = promisify(fs.close);
+interface BulkResult {
+  took: number;
+  errors: boolean;
+  items: {}[];
+}
 
-interface IBabyNameDoc {
+interface BabyNameDoc {
   gender: string;
   name: string;
   percent: string;
@@ -42,24 +25,22 @@ interface IBabyNameDoc {
   date: Date;
 }
 
-interface IBulkResult {
-  took: number;
-  errors: boolean;
-  items: any[];
-}
-
 async function runBulkPartition(
-  docs: IBabyNameDoc[],
+  docs: BabyNameDoc[],
   client: Client
 ): Promise<{ took: number; errors: boolean; items: number }> {
-  const body = docs.map(babyNameDoc => {
-    const id = `${babyNameDoc.year}-${babyNameDoc.name}-${babyNameDoc.gender}`;
-    return [{ index: { _index: config.esIndex, _id: id } }, babyNameDoc];
-  });
+  const body = docs.map(
+    (babyNameDoc: BabyNameDoc): [{}, BabyNameDoc] => {
+      const id = `${babyNameDoc.year}-${babyNameDoc.name}-${babyNameDoc.gender}`;
+      return [{ index: { _index: config.esIndex, _id: id } }, babyNameDoc];
+    }
+  );
 
-  return client.bulk({ body: flatten(body) }).then((result: IBulkResult) => {
-    return { took: result.took, errors: result.errors, items: result.items.length };
-  });
+  return client.bulk({ body: flatten(body) }).then(
+    (result: BulkResult): { took: number; errors: boolean; items: number } => {
+      return { took: result.took, errors: result.errors, items: result.items.length };
+    }
+  );
 }
 
 async function runDocs(
@@ -73,10 +54,28 @@ async function runDocs(
   const bar1 = new _cliProgress.Bar({}, _cliProgress.Presets.shades_classic);
   bar1.start(UPLOADS_EXPECTED, 0);
 
-  const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
-  const nameDocs: IBabyNameDoc[] = [];
+  const readFileAsync = promisify(fs.readFile);
+  const fileOpenAsync = promisify(fs.open);
+  const fileWriteSync = promisify(fs.write);
+  const fileCloseAsync = promisify(fs.close);
 
-  const upload = async () => {
+  const mapCapture = (
+    yearNameMap: Map<number, BabyNameDoc[]>,
+    yearInt: number,
+    doc: BabyNameDoc
+  ): void => {
+    const yearNames = yearNameMap.get(yearInt);
+    if (yearNames.length) {
+      yearNames.push(doc);
+      yearNameMap.set(yearInt, yearNames);
+    }
+  };
+
+  const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
+  const yearNameMap: Map<number, BabyNameDoc[]> = new Map();
+  const nameDocs: BabyNameDoc[] = [];
+
+  const upload = async (): Promise<void> => {
     try {
       const { took, errors, items } = await runBulkPartition(nameDocs, client);
       await fileWriteSync(fsHandle, JSON.stringify({ took, errors, items }) + '\n');
@@ -110,7 +109,10 @@ async function runDocs(
           value: parseInt(values[year], 10) as number,
           year: yearInt,
         };
+
         nameDocs.push(doc);
+        mapCapture(yearNameMap, yearInt, doc);
+
         docs++;
 
         // upload
@@ -125,6 +127,8 @@ async function runDocs(
     }
   }
 
+  console.log({ test: yearNameMap.get(2000).length });
+
   // capture remainder name docs
   await upload();
 
@@ -135,7 +139,8 @@ async function runDocs(
   return { files, uploads, docs };
 }
 
-async function readDir(client: Client): Promise<void> {
+export async function run(client: Client): Promise<void> {
+  const readdirAsync = promisify(fs.readdir);
   const fileSet = await readdirAsync('./data', { encoding: 'utf8' });
   const { files, uploads, docs } = await runDocs(fileSet, client);
   console.info('- Done! -');
@@ -145,23 +150,4 @@ async function readDir(client: Client): Promise<void> {
   console.info(`Total documents: ${docs}`);
 }
 
-async function setup(): Promise<Client> {
-  const client = new Client({
-    host: config.esHost,
-    log: 'info',
-  });
-  return client.indices
-    .create({
-      body: INDEX_SETTINGS,
-      index: config.esIndex,
-    })
-    .then(() => client);
-}
-
-setup()
-  .then(readDir)
-  .catch(err => {
-    console.error(`Setup encountered an error: ${err}`);
-    console.debug(err.stack);
-    process.exit();
-  });
+export {};

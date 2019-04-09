@@ -1,2 +1,2 @@
 require('ts-node').register({});
-require('./elasticsearch');
+require('./setup');
