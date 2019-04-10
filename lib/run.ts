@@ -6,7 +6,6 @@ import { Client } from 'elasticsearch';
 import { flatten } from 'lodash';
 import { promisify } from 'util';
 
-const LOG_FILE = 'babies.log';
 const PARTITION_SIZE = 500;
 const UPLOADS_EXPECTED = 3849;
 
@@ -59,26 +58,11 @@ async function runDocs(
   const fileWriteSync = promisify(fs.write);
   const fileCloseAsync = promisify(fs.close);
 
-  const mapCapture = (
-    yearNameMap: Map<number, BabyNameDoc[]>,
-    yearInt: number,
-    doc: BabyNameDoc
-  ): void => {
-    const yearNames = yearNameMap.get(yearInt);
-    if (yearNames.length) {
-      yearNames.push(doc);
-      yearNameMap.set(yearInt, yearNames);
-    }
-  };
-
-  const fsHandle = await fileOpenAsync(LOG_FILE, 'w');
-  const yearNameMap: Map<number, BabyNameDoc[]> = new Map();
   const nameDocs: BabyNameDoc[] = [];
 
   const upload = async (): Promise<void> => {
     try {
       const { took, errors, items } = await runBulkPartition(nameDocs, client);
-      await fileWriteSync(fsHandle, JSON.stringify({ took, errors, items }) + '\n');
       if (!errors) {
         uploads++;
         bar1.update(uploads);
@@ -104,15 +88,13 @@ async function runDocs(
             .add(yearConversionOffset, 'years')
             .toDate(),
           gender: babyName.gender as string,
-          name: ('F' + babyName.name.slice(1)) as string,
+          name: babyName.name as string,
           percent: percents[year] as string,
           value: parseInt(values[year], 10) as number,
           year: yearInt,
         };
 
         nameDocs.push(doc);
-        mapCapture(yearNameMap, yearInt, doc);
-
         docs++;
 
         // upload
@@ -120,21 +102,15 @@ async function runDocs(
           await upload();
           nameDocs.splice(0, PARTITION_SIZE);
         }
-
-        // log
-        await fileWriteSync(fsHandle, JSON.stringify(doc) + '\n');
       }
     }
   }
-
-  console.log({ test: yearNameMap.get(2000).length });
 
   // capture remainder name docs
   await upload();
 
   // clean up
   bar1.stop();
-  await fileCloseAsync(fsHandle);
 
   return { files, uploads, docs };
 }
