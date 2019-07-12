@@ -54,15 +54,12 @@ async function runDocs(
   bar1.start(UPLOADS_EXPECTED, 0);
 
   const readFileAsync = promisify(fs.readFile);
-  const fileOpenAsync = promisify(fs.open);
-  const fileWriteSync = promisify(fs.write);
-  const fileCloseAsync = promisify(fs.close);
 
   const nameDocs: BabyNameDoc[] = [];
 
   const upload = async (): Promise<void> => {
     try {
-      const { took, errors, items } = await runBulkPartition(nameDocs, client);
+      const { errors } = await runBulkPartition(nameDocs, client);
       if (!errors) {
         uploads++;
         bar1.update(uploads);
