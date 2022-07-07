@@ -24,7 +24,7 @@
     "cli-progress": "^2.1.1",
     "elasticsearch": "15.4",
     "lodash": "^4.17.11",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "ts-node": "^7.0.1",
     "typescript": "3.4.2"
   },
